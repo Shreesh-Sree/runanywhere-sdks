@@ -804,6 +804,7 @@ set(RAC_EXPORTED_FUNCTIONS_BASE
     "_rac_solution_create_from_proto"
     "_rac_solution_create_from_yaml"
     "_rac_solution_start"
+    "_rac_solution_attach_rag_session"
     "_rac_solution_stop"
     "_rac_solution_cancel"
     "_rac_solution_feed"

@@ -96,6 +96,15 @@ export class SolutionHandle {
     assertOk('start', this.module._rac_solution_start(this.requireHandle()));
   }
 
+  /** Attach a borrowed live RAG session before starting this solution. */
+  attachRagSession(session: number): void {
+    if (!session) throw new Error('attachRagSession requires a live RAG session');
+    assertOk(
+      'attach_rag_session',
+      this.module._rac_solution_attach_rag_session(this.requireHandle(), session),
+    );
+  }
+
   /** Request a graceful shutdown (non-blocking). */
   stop(): void {
     assertOk('stop', this.module._rac_solution_stop(this.requireHandle()));

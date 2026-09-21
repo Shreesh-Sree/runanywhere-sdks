@@ -553,6 +553,7 @@ export interface EmscriptenRunanywhereModule {
   ): number;
 
   _rac_solution_start(handle: number): number;
+  _rac_solution_attach_rag_session(handle: number, session: number): number;
   _rac_solution_stop(handle: number): number;
   _rac_solution_cancel(handle: number): number;
   _rac_solution_feed(handle: number, itemPtr: number): number;

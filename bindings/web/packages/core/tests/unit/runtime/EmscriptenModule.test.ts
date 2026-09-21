@@ -85,6 +85,7 @@ function fakeModule(counters?: SolutionCallCounters): EmscriptenRunanywhereModul
       if (counters) counters.starts += 1;
       return 0;
     },
+    _rac_solution_attach_rag_session: () => 0,
     _rac_solution_stop: () => 0,
     _rac_solution_cancel: () => 0,
     _rac_solution_feed: () => 0,

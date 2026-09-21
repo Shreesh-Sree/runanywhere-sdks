@@ -64,6 +64,24 @@ describe('Solutions generated surface', () => {
     expect(typeof SolutionModuleCoordinator.resolve).toBe('function');
   });
 
+  it('attaches a live RAG session through the native solution ABI', () => {
+    const calls: Array<[number, number]> = [];
+    const module = {
+      _rac_solution_attach_rag_session: (handle: number, session: number) => {
+        calls.push([handle, session]);
+        return 0;
+      },
+      _rac_solution_destroy: () => undefined,
+    };
+    const handle = new SolutionHandle(42, module as never);
+
+    handle.attachRagSession(17);
+
+    expect(calls).toEqual([[42, 17]]);
+    expect(() => handle.attachRagSession(0)).toThrow(/live RAG session/i);
+    handle.destroy();
+  });
+
   it('feeds UTF-8 text or bytes, cancels, and waits through deterministic teardown', async () => {
     const calls: string[] = [];
     const heap = new Uint8Array(128);

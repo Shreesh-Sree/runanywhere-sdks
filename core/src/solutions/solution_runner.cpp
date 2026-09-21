@@ -6,6 +6,8 @@
 
 #include <memory>
 #include <mutex>
+#include <cstdint>
+#include <string>
 #include <utility>
 
 #include "rac/core/rac_error.h"
@@ -26,12 +28,32 @@ SolutionRunner::~SolutionRunner() {
     wait();
 }
 
+rac_result_t SolutionRunner::attach_rag_session(rac_handle_t session) {
+    if (!session)
+        return RAC_ERROR_INVALID_ARGUMENT;
+
+    std::lock_guard<std::mutex> lock(mu_);
+    if (started_)
+        return RAC_ERROR_INVALID_STATE;
+    rag_session_ = session;
+    return RAC_SUCCESS;
+}
+
 rac_result_t SolutionRunner::start() {
     std::lock_guard<std::mutex> lock(mu_);
     if (init_status_ != RAC_SUCCESS)
         return init_status_;
     if (started_)
         return RAC_ERROR_ALREADY_INITIALIZED;
+
+    if (rag_session_) {
+        const std::string session_handle = std::to_string(
+            static_cast<std::uintptr_t>(reinterpret_cast<std::uintptr_t>(rag_session_)));
+        for (auto& op : *spec_.mutable_operators()) {
+            if (op.type() == "retrieve")
+                (*op.mutable_params())["session_handle_id"] = session_handle;
+        }
+    }
 
     executor_ = std::make_unique<PipelineExecutor>(spec_);
     rac_result_t build_status = RAC_SUCCESS;

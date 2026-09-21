@@ -36,6 +36,7 @@
 #include <string>
 
 #include "rac/core/rac_error.h"
+#include "rac/core/rac_types.h"
 #include "rac/graph/graph_scheduler.hpp"
 #include "rac/solutions/operator_registry.hpp"
 
@@ -64,6 +65,10 @@ class SolutionRunner {
     /// Compile + launch the pipeline. Idempotent — subsequent calls
     /// while running return RAC_ERROR_ALREADY_INITIALIZED.
     rac_result_t start();
+
+    /// Attach a borrowed live RAG session to every retrieve operator. Must be
+    /// called before start(); the caller retains ownership of the session.
+    rac_result_t attach_rag_session(rac_handle_t session);
 
     /// Request a graceful shutdown (close input edges; scheduler
     /// drains naturally). Non-blocking.
@@ -107,6 +112,7 @@ class SolutionRunner {
     std::shared_ptr<OperatorEdge> root_output_;
     std::string root_input_payload_type_;
     std::string root_output_payload_type_;
+    rac_handle_t rag_session_{nullptr};
     bool started_{false};
     bool joined_{false};
 };

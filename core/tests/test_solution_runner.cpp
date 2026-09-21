@@ -3,6 +3,7 @@
 // test_solution_runner.cpp — T4.7 lifecycle + C ABI tests.
 
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <string>
 
@@ -1180,6 +1181,58 @@ TEST(rag_retrieval_params_reach_the_retrieve_operator) {
 }
 
 // ---------------------------------------------------------------------------
+// 10c. A live RAG session is attached once and stamped onto every retrieve
+//      operator before the executor is built.
+// ---------------------------------------------------------------------------
+TEST(attach_rag_session_stamps_every_retrieve_operator) {
+    ScopedSolutionStandins standins;
+
+    PipelineSpec spec;
+    spec.set_name("retrieve_chain");
+    auto* source = spec.add_operators();
+    source->set_name("query");
+    source->set_type("source");
+    auto* first = spec.add_operators();
+    first->set_name("retrieve_one");
+    first->set_type("retrieve");
+    auto* second = spec.add_operators();
+    second->set_name("retrieve_two");
+    second->set_type("retrieve");
+    auto* sink = spec.add_operators();
+    sink->set_name("context");
+    sink->set_type("sink");
+    auto* edge = spec.add_edges();
+    edge->set_from("query.out");
+    edge->set_to("retrieve_one.in");
+    edge = spec.add_edges();
+    edge->set_from("retrieve_one.results");
+    edge->set_to("retrieve_two.in");
+    edge = spec.add_edges();
+    edge->set_from("retrieve_two.results");
+    edge->set_to("context.in");
+
+    SolutionRunner runner(spec);
+    const auto session = reinterpret_cast<rac_handle_t>(static_cast<std::uintptr_t>(0x1234));
+    CHECK(runner.attach_rag_session(session) == RAC_SUCCESS);
+    CHECK(runner.start() == RAC_SUCCESS);
+
+    int retrieve_count = 0;
+    for (const auto& op : runner.spec().operators()) {
+        if (op.type() != "retrieve")
+            continue;
+        retrieve_count++;
+        const auto handle = op.params().find("session_handle_id");
+        CHECK(handle != op.params().end());
+        CHECK(handle->second == "4660");
+    }
+    CHECK(retrieve_count == 2);
+
+    runner.close_input();
+    runner.wait();
+    CHECK(runner.attach_rag_session(session) == RAC_SUCCESS);
+}
+
+// ---------------------------------------------------------------------------
 // 11. C ABI end-to-end: proto-bytes path.
 // ---------------------------------------------------------------------------
 TEST(c_abi_proto_bytes_lifecycle) {
@@ -1309,6 +1362,32 @@ TEST(c_abi_yaml_pipeline_lifecycle) {
 }
 
 // ---------------------------------------------------------------------------
+// 13a. C ABI attachment validates the borrowed handle and lifecycle boundary.
+// ---------------------------------------------------------------------------
+TEST(c_abi_attach_rag_session_lifecycle) {
+    const char* yaml =
+        "name: \"inline\"\n"
+        "operators:\n"
+        "  - name: \"src\"\n"
+        "    type: \"source\"\n"
+        "  - name: \"snk\"\n"
+        "    type: \"sink\"\n"
+        "edges:\n"
+        "  - from: \"src.out\"\n"
+        "    to: \"snk.in\"\n";
+
+    rac_solution_handle_t h = nullptr;
+    CHECK(rac_solution_create_from_yaml(yaml, &h) == RAC_SUCCESS);
+    const auto session = reinterpret_cast<rac_handle_t>(static_cast<std::uintptr_t>(0x1234));
+    CHECK(rac_solution_attach_rag_session(h, nullptr) == RAC_ERROR_INVALID_ARGUMENT);
+    CHECK(rac_solution_attach_rag_session(h, session) == RAC_SUCCESS);
+    CHECK(rac_solution_start(h) == RAC_SUCCESS);
+    CHECK(rac_solution_attach_rag_session(h, session) == RAC_ERROR_INVALID_STATE);
+    rac_solution_close_input(h);
+    rac_solution_destroy(h);
+}
+
+// ---------------------------------------------------------------------------
 // 13.5. Engine-backed retrieve operator: verifies the schema contract
 //       (text.utf8 in → text.utf8 out on port "results") and the
 //       honest-failure path when the host did not stamp `session_handle_id`
@@ -1378,6 +1457,7 @@ TEST(retrieve_without_session_handle_fails_honestly) {
 // 14. Null / invalid handle paths.
 // ---------------------------------------------------------------------------
 TEST(null_handle_paths) {
+    CHECK(rac_solution_attach_rag_session(nullptr, nullptr) == RAC_ERROR_INVALID_HANDLE);
     CHECK(rac_solution_start(nullptr) == RAC_ERROR_INVALID_HANDLE);
     CHECK(rac_solution_stop(nullptr) == RAC_ERROR_INVALID_HANDLE);
     CHECK(rac_solution_cancel(nullptr) == RAC_ERROR_INVALID_HANDLE);
@@ -1417,10 +1497,12 @@ int main() {
     run_test_voice_agent_explicit_zero_temperature_reaches_llm_operator();
     run_test_rag_solution_compiles();
     run_test_rag_retrieval_params_reach_the_retrieve_operator();
+    run_test_attach_rag_session_stamps_every_retrieve_operator();
     run_test_c_abi_proto_bytes_lifecycle();
     run_test_voice_agent_barge_in_params_reach_the_vad_operator();
     run_test_c_abi_yaml_solution_lifecycle();
     run_test_c_abi_yaml_pipeline_lifecycle();
+    run_test_c_abi_attach_rag_session_lifecycle();
     run_test_retrieve_without_session_handle_fails_honestly();
     run_test_null_handle_paths();
 

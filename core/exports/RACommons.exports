@@ -701,6 +701,7 @@ _rac_solution_cancel
 _rac_solution_close_input
 _rac_solution_create_from_proto
 _rac_solution_create_from_yaml
+_rac_solution_attach_rag_session
 _rac_solution_destroy
 _rac_solution_feed
 _rac_solution_start

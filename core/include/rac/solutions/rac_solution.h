@@ -71,6 +71,18 @@ RAC_API rac_result_t rac_solution_create_from_yaml(const char* yaml_text,
                                                    rac_solution_handle_t* out_handle);
 
 /**
+ * Attach a live RAG session to every retrieve operator in the solution.
+ * Must be called after creation and before rac_solution_start(). The solution
+ * borrows the session; the caller remains responsible for destroying it after
+ * the solution has stopped or been destroyed.
+ *
+ * @return RAC_SUCCESS, RAC_ERROR_INVALID_HANDLE, RAC_ERROR_INVALID_ARGUMENT,
+ *         or RAC_ERROR_INVALID_STATE when the solution has already started.
+ */
+RAC_API rac_result_t rac_solution_attach_rag_session(rac_solution_handle_t handle,
+                                                     rac_handle_t session);
+
+/**
  * Start the underlying scheduler. Non-blocking; worker threads run in
  * the background until `rac_solution_stop` / `rac_solution_cancel` is
  * called.
